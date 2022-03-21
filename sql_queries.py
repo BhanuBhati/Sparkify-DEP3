@@ -5,6 +5,21 @@ import configparser
 config = configparser.ConfigParser()
 config.read('dwh.cfg')
 
+#[CLUSTER]
+HOST=config.get('CLUSTER', 'HOST')
+DB_NAME=config.get('CLUSTER', 'DB_NAME')
+DB_USER=config.get('CLUSTER', 'DB_USER')
+DB_PASSWORD=config.get('CLUSTER', 'DB_PASSWORD')
+DB_PORT=config.get('CLUSTER', 'DB_PORT')
+
+#[IAM_ROLE]
+ARN=config.get('IAM_ROLE', 'ARN')
+
+#[S3]
+LOG_DATA=config.get('S3', 'LOG_DATA')
+LOG_JSONPATH=config.get('S3', 'LOG_JSONPATH')
+SONG_DATA=config.get('S3', 'SONG_DATA')
+
 # DROP TABLES
 
 staging_events_table_drop = "DROP TABLE IF EXISTS staging_events"
@@ -126,16 +141,16 @@ sortkey(month, day)
 # STAGING TABLES
 
 staging_events_copy = ("""
-COPY staging_events FROM 's3://udacity-dend/log_data'
+COPY staging_events FROM {}
 credentials 'aws_iam_role':{}
 region 'us-east-1'
-""").format(ARN)
+""").format(LOG_DATA, ARN)
 
 staging_songs_copy = ("""
-COPY staging_songs FROM 's3://udacity-dend/song_data'
+COPY staging_songs FROM {}
 credentials 'aws_iam_role':{},
 region 'us-east-1'
-""").format(ARN)
+""").format(SONG_DATA, ARN)
 
 # FINAL TABLES
 
