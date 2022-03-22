@@ -25,10 +25,10 @@ SONG_DATA=config.get('S3', 'SONG_DATA')
 staging_events_table_drop = "DROP TABLE IF EXISTS staging_events CASCADE"
 staging_songs_table_drop = "DROP TABLE IF EXISTS staging_songs CASCADE"
 songplay_table_drop = "DROP TABLE IF EXISTS songplays CASCADE"
-user_table_drop = "DROP TABLE IF EXISTS users"
+user_table_drop = "DROP TABLE IF EXISTS users CASCADE"
 song_table_drop = "DROP TABLE IF EXISTS songs CASCADE"
-artist_table_drop = "DROP TABLE IF EXISTS artists"
-time_table_drop = "DROP TABLE IF EXISTS time"
+artist_table_drop = "DROP TABLE IF EXISTS artists CASCADE"
+time_table_drop = "DROP TABLE IF EXISTS time CASCADE"
 
 # CREATE TABLES
 
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS staging_songs
 songplay_table_create = ("""
 CREATE TABLE IF NOT EXISTS songplay
 (
-    songplay_id INT PRIMARY KEY,
+    songplay_id INT IDENTITY(1,1) PRIMARY KEY,
     start_time datetime NOT NULL REFERENCES time(start_time) DISTKEY SORTKEY,
     user_id INT NOT NULL REFERENCES users(user_id),
     level VARCHAR NOT NULL,
@@ -142,14 +142,13 @@ sortkey(month, day)
 
 staging_events_copy = ("""
 COPY staging_events FROM {}
-credentials 'aws_iam_role':{}
-region 'us-east-1'
-""").format(LOG_DATA, ARN)
+iam_role {}
+json {}
+""").format(LOG_DATA, ARN, LOG_JSONPATH)
 
 staging_songs_copy = ("""
 COPY staging_songs FROM {}
-credentials 'aws_iam_role':{},
-region 'us-east-1'
+iam_role {}
 """).format(SONG_DATA, ARN)
 
 # FINAL TABLES
@@ -157,41 +156,73 @@ region 'us-east-1'
 songplay_table_insert = ("""
 INSERT INTO song_play 
 (songplay_id, start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+SELECT
+    se.to_date(ts),
+    se.user_id,
+    se.level,
+    s.song_id,
+    s.artist_id
+    se.location,
+    se.useragent
+FROM
+    staging_events se
+    JOIN songs s ON s.title = se.song and s.duration = se.length
+WHERE
+    se.page = 'NextSong'
 """)
 
 user_table_insert = ("""
 INSERT OR IGNORE INTO users 
 (user_id, first_name, last_name, gender, level)
 SELECT
-    user_id,
+    unique user_id,
     first_name,
     last_name,
     gender,
     level
 FROM 
     staging_events
+ORDER BY
+    ts DESC
 VALUES (%s, %s, %s, %s, %s)
 """)
 
 song_table_insert = ("""
 INSERT INTO songs
-(song_id, title, artist_id, year, duration)
-VALUES (%s, %s, %s, %s, %s)
+SELECT
+    unique song_id,
+    title,
+    artist_id,
+    year,
+    duration
+FROM
+    staging_songs
 """)
 
 artist_table_insert = ("""
 INSERT INTO artists
-(artist_id, name, location, lattitude, longitude)
-VALUES
-(%s, %s, %s, %s, %s)
+SELECT
+    unique artist_id,
+    artist_name,
+    artist_location,
+    artist_latitude,
+    artist_longitude,
+FROM
+    staging_songs    
 """)
 
 time_table_insert = ("""
 INSERT INTO time
-(start_time, hour, day, week, month, year, weekday)
-VALUES
-(%s, %s, %s, %s, %s, %s, %s)
+SELECT
+    unique to_date(ts) as start,
+    EXTRACT(hour FROM start),
+    EXTRACT(dat FROM start),
+    EXTRACT(week FROM start),
+    EXTRACT(month FROM start),
+    EXTRACT(year FROM start),
+    EXTRACT(weekday FROM start)
+FROM
+    staging_events
 """)
 
 # QUERY LISTS
