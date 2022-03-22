@@ -22,11 +22,11 @@ SONG_DATA=config.get('S3', 'SONG_DATA')
 
 # DROP TABLES
 
-staging_events_table_drop = "DROP TABLE IF EXISTS staging_events"
-staging_songs_table_drop = "DROP TABLE IF EXISTS staging_songs"
-songplay_table_drop = "DROP TABLE IF EXISTS songplays"
+staging_events_table_drop = "DROP TABLE IF EXISTS staging_events CASCADE"
+staging_songs_table_drop = "DROP TABLE IF EXISTS staging_songs CASCADE"
+songplay_table_drop = "DROP TABLE IF EXISTS songplays CASCADE"
 user_table_drop = "DROP TABLE IF EXISTS users"
-song_table_drop = "DROP TABLE IF EXISTS songs"
+song_table_drop = "DROP TABLE IF EXISTS songs CASCADE"
 artist_table_drop = "DROP TABLE IF EXISTS artists"
 time_table_drop = "DROP TABLE IF EXISTS time"
 
@@ -50,7 +50,7 @@ CREATE TABLE staging_events
     sessionId INT,
     song VARCHAR,
     status INT,
-    ts BIGINT,
+    ts BIGINT SORTKEY,
     useragent VARCHAR,
     user_id INT
 )
@@ -161,8 +161,16 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """)
 
 user_table_insert = ("""
-INSERT INTO users 
+INSERT OR IGNORE INTO users 
 (user_id, first_name, last_name, gender, level)
+SELECT
+    user_id,
+    first_name,
+    last_name,
+    gender,
+    level
+FROM 
+    staging_events
 VALUES (%s, %s, %s, %s, %s)
 """)
 
