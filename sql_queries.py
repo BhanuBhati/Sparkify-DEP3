@@ -41,33 +41,45 @@ CREATE TABLE staging_events
     gender CHAR(1),
     itemInSession INT,
     last_name VARCHAR,
-    length DECIMAL(3,2),
+    length FLOAT,
     level VARCHAR,
     location VARCHAR,
     method VARCHAR,
     page VARCHAR,
-    registration VARCHAR,
+    registration DOUBLE PRECISION,
     sessionId INT,
     song VARCHAR,
     status INT,
     ts BIGINT SORTKEY,
     useragent VARCHAR,
-    user_id INT
+    user_id VARCHAR
 )
 """)
+
+"""
+{"artist_id":"ARJNIUY12298900C91",
+"artist_latitude":null,
+"artist_location":"",
+"artist_longitude":null,
+"artist_name":"Adelitas Way",
+"duration":213.9424,
+"num_songs":1,
+"song_id":"SOBLFFE12AF72AA5BA",
+"title":"Scream",
+"year":2009}"""
 
 staging_songs_table_create = ("""
 CREATE TABLE IF NOT EXISTS staging_songs
 (
     num_songs INT,
-    artist_id VARCHAR NOT NULL,
+    artist_id VARCHAR,
     artist_latitude VARCHAR,
     artist_longitude VARCHAR,
     artist_location VARCHAR,
     artist_name VARCHAR,
     song_id VARCHAR,
     title VARCHAR,
-    duration DECIMAL(3,2) NOT NULL,
+    duration FLOAT,
     year INT
 )
 """)
@@ -149,6 +161,9 @@ json {}
 staging_songs_copy = ("""
 COPY staging_songs FROM {}
 iam_role {}
+COMPUPDATE OFF region 'us-west-2'
+json 'auto'
+TRUNCATECOLUMNS BLANKSASNULL EMPTYASNULL;
 """).format(SONG_DATA, ARN)
 
 # FINAL TABLES
@@ -229,5 +244,5 @@ FROM
 
 create_table_queries = [staging_events_table_create, staging_songs_table_create, user_table_create, artist_table_create, song_table_create, time_table_create, songplay_table_create]
 drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
-copy_table_queries = [staging_events_copy, staging_songs_copy]
+copy_table_queries = [staging_songs_copy, staging_events_copy]
 insert_table_queries = [songplay_table_insert, user_table_insert, song_table_insert, artist_table_insert, time_table_insert]
